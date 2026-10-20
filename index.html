@@ -1,0 +1,889 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Kalkulator AHP</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one working column. Header, live summary strip, step tabs, then the active step as stacked sheets; the hierarchy chart opens Struktur and Hasil. */
+:root{
+  --bg:#F1F3F6; --surface:#FFFFFF; --surface-2:#E7EBF0; --ink:#14213D; --ink-2:#4A5568; --line:#D3DAE3; --muted:#7A8496;
+  --accent:#B24E1A; --accent-fill:#E8722C; --accent-soft:#FBE4D5; --on-accent:#14213D;
+  --blue:#2B5D8A; --blue-soft:#DCE8F4;
+  --good:#23704F; --good-soft:#DCF0E4; --bad:#A8261B; --bad-soft:#FADFDB;
+  --font-display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',Arial,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1524; --surface:#152038; --surface-2:#1D2A46; --ink:#E7ECF4; --ink-2:#A8B3C6; --line:#2C3B59; --muted:#7F8BA1;
+    --accent:#F29A5F; --accent-fill:#E8722C; --accent-soft:#3B2617;
+    --blue:#7FAEDD; --blue-soft:#18304B;
+    --good:#6BCB97; --good-soft:#15372A; --bad:#F48A80; --bad-soft:#3F1D1B;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1524; --surface:#152038; --surface-2:#1D2A46; --ink:#E7ECF4; --ink-2:#A8B3C6; --line:#2C3B59; --muted:#7F8BA1;
+  --accent:#F29A5F; --accent-fill:#E8722C; --accent-soft:#3B2617;
+  --blue:#7FAEDD; --blue-soft:#18304B;
+  --good:#6BCB97; --good-soft:#15372A; --bad:#F48A80; --bad-soft:#3F1D1B;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.app{max-width:1200px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--font-display);font-weight:700;font-size:44px;line-height:1;letter-spacing:.3px}
+.sub{color:var(--ink-2);max-width:64ch;margin-top:6px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:600 14px/1.2 var(--font-body);padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.armed{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.banner{display:flex;gap:12px;align-items:flex-start;background:var(--blue-soft);color:var(--ink);border-radius:10px;padding:12px 16px;font-size:14px}
+.banner b{font-weight:600}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.stat .lbl{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.stat .val{font-family:var(--font-display);font-size:26px;font-weight:600;line-height:1.1;overflow-wrap:anywhere}
+.stat .val small{font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--accent)}
+.stat select{max-width:100%}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+.tab{display:flex;align-items:center;gap:8px;padding:11px 14px;font:600 14px/1 var(--font-body);color:var(--ink-2);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab .n{font-family:var(--font-mono);font-size:11px;width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;background:var(--surface-2);color:var(--ink-2)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent-fill)}
+.tab[aria-selected="true"] .n{background:var(--accent-fill);color:var(--on-accent)}
+#panel{display:flex;flex-direction:column;gap:20px}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.sheet-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+.sheet h2{font-family:var(--font-display);font-size:28px;font-weight:600;line-height:1.1}
+.sheet h3{font-size:16px;font-weight:700}
+.lead{color:var(--ink-2);max-width:72ch;margin-top:4px}
+.note{color:var(--ink-2);font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid2 > *{min-width:0}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+input[type=text],input[type=number],select,textarea{font:400 14px/1.3 var(--font-body);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:90px}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:8px;align-items:center}
+.code{font-family:var(--font-mono);font-size:12px;font-weight:600;background:var(--surface-2);color:var(--ink);border-radius:6px;padding:4px 6px;text-align:center;display:inline-block;min-width:34px}
+.item-btns{display:flex;gap:2px}
+.iconbtn{width:34px;height:34px;border:none;background:transparent;color:var(--ink-2);border-radius:6px;cursor:pointer;font:600 16px/1 var(--font-body)}
+.iconbtn:hover:not(:disabled){background:var(--surface-2);color:var(--ink)}
+.iconbtn:disabled{opacity:.3;cursor:not-allowed}
+.addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.cblock{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.cblock input[type=text]{background:var(--surface)}
+.subs{display:flex;flex-direction:column;gap:6px;margin-left:24px;padding-left:12px;border-left:2px solid var(--line)}
+.item.subitem .code{background:var(--blue-soft)}
+.item.subitem input[type=text]{font-size:13px}
+.addrow.subadd input{font-size:13px}
+details{border-top:1px dashed var(--line);padding-top:10px}
+details summary{cursor:pointer;font-weight:600;color:var(--blue);font-size:14px}
+.bulk{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.scale{display:flex;flex-wrap:wrap;gap:6px}
+.scale span{font-size:12px;background:var(--surface-2);border-radius:999px;padding:4px 10px;color:var(--ink-2)}
+.scale b{font-family:var(--font-mono);color:var(--ink);margin-right:4px}
+.matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;max-width:100%;-webkit-overflow-scrolling:touch}
+table.mx{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;width:100%;font-size:14px}
+table.mx th,table.mx td{padding:7px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}
+table.mx tr > *:last-child{border-right:none}
+table.mx tbody tr:last-child > *{border-bottom:none}
+table.mx thead th{background:var(--surface-2);font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink)}
+table.mx tbody th{text-align:left;font-weight:600;background:var(--surface);position:sticky;left:0;z-index:1;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+table.mx thead th:first-child{position:sticky;left:0;z-index:2;text-align:left;font-family:var(--font-body);font-weight:500;color:var(--ink-2)}
+table.mx td.diag{color:var(--muted);font-family:var(--font-mono)}
+table.mx td.recip{color:var(--ink-2);font-family:var(--font-mono);background:var(--bg)}
+table.mx td.in{padding:4px 6px}
+table.mx td.in.row{background:var(--accent-soft)}
+table.mx td.in.col{background:var(--blue-soft)}
+table.mx td.wcol{font-family:var(--font-mono);font-weight:600;color:var(--accent)}
+table.mx td.num{font-family:var(--font-mono);text-align:right}
+table.mx td.txt{text-align:left}
+table.mx tr.total > *{background:var(--surface-2);font-weight:600}
+table.mx tr.group > *{background:var(--surface-2);font-weight:600;text-align:left}
+table.mx td.best{font-weight:700;color:var(--accent)}
+select.pw{width:auto;min-width:70px;font-family:var(--font-mono);padding:5px 6px;background:var(--surface);text-align:center}
+.legend-mx{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-2)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid var(--line)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--good-soft);color:var(--good)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.na{background:var(--surface-2);color:var(--ink-2)}
+.cons{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;background:var(--bg);border-radius:10px;padding:12px 16px}
+.kv{display:flex;flex-direction:column;gap:2px}
+.kv span{font-family:var(--font-mono);font-size:11px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+.kv b{font-family:var(--font-mono);font-size:16px;font-weight:600}
+.hint{background:var(--bad-soft);color:var(--ink);border-radius:8px;padding:10px 14px;font-size:13px}
+.info{background:var(--blue-soft);color:var(--ink);border-radius:8px;padding:10px 14px;font-size:13px}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:30px minmax(120px,300px) minmax(0,1fr) 76px;gap:12px;align-items:center}
+.bar-row .rk{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--muted);text-align:center}
+.bar-row.top .rk{color:var(--accent)}
+.bar-row .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .nm .code{margin-right:6px}
+.track{height:16px;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.fill{height:100%;border-radius:8px;background:var(--blue)}
+.bar-row.top .fill{background:var(--accent-fill)}
+.bar-row .v{font-family:var(--font-mono);font-weight:600;text-align:right}
+@media (max-width:600px){.bar-row{grid-template-columns:26px minmax(0,1fr) 70px}.bar-row .track{grid-column:2 / -1}}
+.critchips{display:flex;flex-wrap:wrap;gap:8px}
+.cchip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 12px;font:600 13px/1.2 var(--font-body);cursor:pointer;max-width:100%}
+.cchip span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.cchip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.ok{background:var(--good)}.dot.bad{background:var(--bad)}.dot.na{background:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:none;background:var(--surface);color:var(--ink-2);font:600 13px/1.2 var(--font-body);padding:8px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.ctrls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end}
+.ctrl{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.row-split{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center}
+.steps-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.formula{font-family:var(--font-mono);font-size:13px;background:var(--bg);border-radius:8px;padding:10px 14px;line-height:1.7;overflow-x:auto}
+.sens-ctrl{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:end}
+@media (max-width:720px){.sens-ctrl{grid-template-columns:1fr}}
+input[type=range]{width:100%;accent-color:var(--accent-fill)}
+.readout{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline}
+.readout b{font-family:var(--font-display);font-size:30px;font-weight:600}
+.chart{width:100%;height:auto;display:block}
+.chart .ct{fill:var(--ink-2);font-family:var(--font-mono);font-size:11px}
+.chart .cl{font-family:var(--font-body);font-size:12px;font-weight:600}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--muted);stroke-width:1.5}
+.cross{display:flex;flex-direction:column;gap:6px;font-size:14px;margin:0;padding:0}
+.cross li{margin-left:18px}
+.copybox{display:flex;flex-direction:column;gap:8px}
+/* hierarchy chart */
+.hier-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg);-webkit-overflow-scrolling:touch}
+.hier-box{position:relative;overflow:hidden;margin:0 auto}
+.hier{position:absolute;left:0;top:0}
+.hb.sub{align-items:flex-start;text-align:left;font-size:12.5px;padding:6px 9px}
+.hb.sub .sc{font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--blue);margin-right:2px}
+.hier svg{position:absolute;left:0;top:0}
+.hier .lv{position:absolute;left:12px;width:92px;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.hb{position:absolute;border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;text-align:center;font-size:13px;line-height:1.25;overflow:hidden}
+.hb .t{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.hb .w{font-family:var(--font-mono);font-size:11.5px}
+.hb .k{font-family:var(--font-mono);font-size:10.5px;opacity:.8}
+.hb.goal{background:var(--ink);color:var(--surface)}
+.hb.crit{background:var(--accent-soft);border:1.5px solid var(--accent-fill);color:var(--ink)}
+.hb.crit .w{color:var(--accent);font-weight:600}
+.hb.sub{background:var(--blue-soft);border:1.5px solid var(--blue);color:var(--ink)}
+.hb.sub.info{border-style:dashed}
+.hb.alt{background:var(--surface);border:1.5px solid var(--line);color:var(--ink)}
+.hb.alt.top{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent)}
+.hier-legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:var(--ink-2)}
+.foot{color:var(--muted);font-size:12px;line-height:1.6}
+@media (pointer:coarse){
+  .iconbtn{width:42px;height:42px}
+  .btn{padding:11px 16px}
+  .btn.small{padding:9px 13px}
+  select.pw{padding:9px 8px;min-width:78px;font-size:15px}
+  .tab{padding:14px 16px}
+  .seg button{padding:11px 14px}
+  .cchip{padding:10px 14px}
+  input[type=text],input[type=number],select{padding:10px 12px;font-size:16px}
+}
+@media (prefers-reduced-motion: no-preference){.fill{transition:width .25s ease}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Analytic Hierarchy Process</p>
+      <h1>Kalkulator AHP</h1>
+      <p class="sub">Susun tujuan, kriteria, sub-kriteria, dan alternatif sebanyak apa pun. Bandingkan berpasangan dengan skala Saaty 1–9, lalu lihat bagan, bobot, konsistensi, peringkat, dan sensitivitasnya.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" id="btn-sample" data-action="sample">Muat contoh kasus</button>
+      <button class="btn" type="button" id="btn-reset" data-action="reset">Mulai dari nol</button>
+      <button class="btn primary" type="button" id="btn-copy" data-action="copy">Salin hasil</button>
+    </div>
+  </header>
+  <div id="banner"></div>
+  <section class="summary" id="summary" aria-live="polite"></section>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main id="panel"></main>
+  <div id="copy-fallback"></div>
+  <p class="foot">Metode “rata-rata baris”: setiap sel dibagi total kolomnya, lalu setiap baris dirata-rata. Konsistensi: λmax = rata-rata (Aw)ᵢ / wᵢ, CI = (λmax − n)/(n − 1), CR = CI/RI. RI Saaty: n=3 0,58 · 4 0,90 · 5 1,12 · 6 1,24 · 7 1,32 · 8 1,41 · 9 1,45 · 10 1,49 · 11 1,51 · 12 1,48 · 13 1,56 · 14 1,57 · 15 1,59 (n &gt; 15 memakai 1,59). Bobot global sub-kriteria = bobot kriteria induk × bobot lokal. Data tersimpan otomatis di peramban ini saja.</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+var STORE='ahp-kalkulator-v2', STORE_V1='ahp-kalkulator-v1';
+var RI=[0,0,0,0.58,0.90,1.12,1.24,1.32,1.41,1.45,1.49,1.51,1.48,1.56,1.57,1.59];
+function riFor(n){return n<RI.length?RI[n]:1.59;}
+var SCALE=[9,8,7,6,5,4,3,2,1,1/2,1/3,1/4,1/5,1/6,1/7,1/8,1/9];
+var COLORS=['#E8722C','#3D7CC0','#8A96A8','#3F9A6F','#9B6BC4','#C9A227','#D45679','#2A9BB0','#A0714F','#6574C9'];
+var TABS=[['struktur','Struktur & bagan'],['kriteria','Bobot kriteria'],['subkriteria','Bobot sub-kriteria'],['alternatif','Penilaian alternatif'],['hasil','Hasil'],['sensitivitas','Sensitivitas']];
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function lab(v){if(!isFinite(v))return '–';if(Math.abs(v-Math.round(v))<1e-9)return String(Math.round(v));var k=1/v;if(Math.abs(k-Math.round(k))<1e-6)return '1/'+Math.round(k);return v.toFixed(4);}
+function parseFrac(s){s=String(s);if(s.indexOf('/')>-1){var p=s.split('/');return Number(p[0])/Number(p[1]);}return Number(s);}
+function snap(v){var best=1,d=Infinity;for(var i=0;i<SCALE.length;i++){var dd=Math.abs(Math.log(SCALE[i])-Math.log(v));if(dd<d){d=dd;best=SCALE[i];}}return best;}
+function pct(v,d){if(!isFinite(v))return '–';return (v*100).toFixed(d==null?2:d)+'%';}
+function f4(v){return isFinite(v)?v.toFixed(4):'–';}
+function trunc(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;}
+function nid(p){return p+Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,6);}
+function numv(x){return x===''||x==null?NaN:Number(x);}
+function normalize(vals){var s=vals.reduce(function(a,b){return a+b;},0);return vals.map(function(v){return v/s;});}
+
+/* ---------- AHP core ---------- */
+function compute(M,method){
+  var n=M.length;
+  if(n===0)return {n:0,w:[],col:[],N:[],Aw:[],ratio:[],lmax:0,CI:0,RI:0,CR:0,M:M};
+  var col=[],i,j;
+  for(j=0;j<n;j++){col[j]=0;for(i=0;i<n;i++)col[j]+=M[i][j];}
+  var N=M.map(function(r){return r.map(function(v,j){return v/col[j];});});
+  var w=N.map(function(r){return r.reduce(function(a,b){return a+b;},0)/n;});
+  if(method==='eig'&&n>2){
+    for(var k=0;k<500;k++){
+      var x=M.map(function(r){return r.reduce(function(a,v,j){return a+v*w[j];},0);});
+      var s=x.reduce(function(a,b){return a+b;},0);
+      var nw=x.map(function(v){return v/s;});
+      var diff=0;nw.forEach(function(v,i){diff+=Math.abs(v-w[i]);});
+      w=nw;if(diff<1e-13)break;
+    }
+  }
+  var Aw=M.map(function(r){return r.reduce(function(a,v,j){return a+v*w[j];},0);});
+  var ratio=Aw.map(function(v,i){return v/w[i];});
+  var lmax=ratio.reduce(function(a,b){return a+b;},0)/n;
+  var CI=n>2?(lmax-n)/(n-1):0;
+  var ri=riFor(n);
+  var CR=ri>0?CI/ri:0;
+  return {n:n,col:col,N:N,w:w,Aw:Aw,ratio:ratio,lmax:lmax,CI:CI,RI:ri,CR:CR,M:M};
+}
+function getPW(pw,a,b){if(a===b)return 1;if(!pw)return 1;var v=pw[a+'|'+b];if(v!=null)return v;v=pw[b+'|'+a];if(v!=null)return 1/v;return 1;}
+function setPW(pw,a,b,v){delete pw[b+'|'+a];pw[a+'|'+b]=v;}
+function buildMatrix(pw,ids){return ids.map(function(a){return ids.map(function(b){return getPW(pw,a,b);});});}
+function worstPair(M,w){
+  var n=M.length,best=null,bd=0;
+  for(var i=0;i<n;i++)for(var j=i+1;j<n;j++){
+    var e=Math.abs(Math.log(M[i][j]*w[j]/w[i]));
+    if(e>bd){bd=e;best={i:i,j:j,given:M[i][j],sugg:snap(w[i]/w[j])};}
+  }
+  return best;
+}
+
+/* ---------- state ---------- */
+function sample(){
+  var C=[
+    ['Economic Value Creation',[['Net present value',13.34],['Return on investment',51.53],['Profit',21.10],['Additional physical facilities',8.02],['Additional overhead',6.01]]],
+    ['Societal Value Creation',[['Health and safety',46.06],['Local community development',7.46],['Employment creation',13.64],['Learning opportunities for employees',32.84]]],
+    ['Environmental Value Creation',[['Landfill avoidance',8.60],['Thermal/material yield improvement',24.92],['Reduced release of harmful gases',15.22],['Replacing harmful chemicals',45.75],['Water consumption reduction',5.51]]],
+    ['Supply Chain Advantage',[['Mitigating supply chain risks',39.92],['Product quality',23.72],['Inventory reduction',6.06],['Lead time improvement',30.30]]],
+    ['Technological Competitiveness',[['Realization of strategic objectives',37.17],['High productivity',29.34],['Technology life cycle',15.62],['Ease of use',5.29],['Fit with current capability',3.86],['Knowledge transfer',8.72]]],
+    ['Operational Flexibility',[['Market responsiveness',23.72],['Capacity growth',39.92],['Crude-slate and scheduling flexibility',6.06],['Efficiency of the operating system',30.30]]]
+  ];
+  var subPW={},subMode={},subDirect={};
+  var criteria=C.map(function(cd,i){
+    var id='c'+(i+1);
+    var subs=cd[1].map(function(sd,j){return {id:id+'s'+(j+1),name:sd[0]};});
+    subMode[id]='direct';subDirect[id]={};subPW[id]={};
+    cd[1].forEach(function(sd,j){subDirect[id][subs[j].id]=sd[1];});
+    return {id:id,name:cd[0],subs:subs,altLevel:'crit'};
+  });
+  var A=['Oxy-fuel','Regenerative burner','Conventional air burner'];
+  var alts=A.map(function(n,i){return {id:'a'+(i+1),name:n};});
+  var up=[[null,1/3,1/3,3,3,3],[null,null,2,5,5,7],[null,null,null,5,5,5],[null,null,null,null,1,3],[null,null,null,null,null,5]];
+  var critPW={};
+  up.forEach(function(row,i){row.forEach(function(v,j){if(v!=null)critPW[criteria[i].id+'|'+criteria[j].id]=v;});});
+  var J=[[1/2,1/9,1/3],[1,5,3],[5,9,3],[3,5,2],[3,9,5],[1/2,2,3]];
+  var altPW={},altMode={},altDirect={},altType={};
+  criteria.forEach(function(c,k){altPW[c.id]={'a1|a2':J[k][0],'a1|a3':J[k][1],'a2|a3':J[k][2]};altMode[c.id]='pw';});
+  return {v:2,isSample:true,goal:'Memilih teknologi pembakaran berkelanjutan (Pertamina Kilang Nusantara)',method:'avg',criteria:criteria,alts:alts,
+    critPW:critPW,subPW:subPW,subMode:subMode,subDirect:subDirect,altPW:altPW,altMode:altMode,altDirect:altDirect,altType:altType,
+    subCrit:'c1',altLeaf:'c1',sensCrit:'c1',sensX:null,resView:'crit',tab:'struktur'};
+}
+function blank(){
+  var criteria=[1,2,3].map(function(i){return {id:nid('c'),name:'Kriteria '+i,subs:[],altLevel:'sub'};});
+  var alts=['A','B','C'].map(function(l){return {id:nid('a'),name:'Alternatif '+l};});
+  return {v:2,isSample:false,goal:'',method:'avg',criteria:criteria,alts:alts,critPW:{},subPW:{},subMode:{},subDirect:{},altPW:{},altMode:{},altDirect:{},altType:{},
+    subCrit:criteria[0].id,altLeaf:criteria[0].id,sensCrit:criteria[0].id,sensX:null,resView:'crit',tab:'struktur'};
+}
+function migrate(s){
+  if(!s||typeof s!=='object')return null;
+  if(s.v===1){
+    (s.criteria||[]).forEach(function(c){c.subs=c.subs||[];c.altLevel=c.altLevel||'sub';});
+    s.subPW={};s.subMode={};s.subDirect={};s.altLeaf=s.altCrit;s.subCrit=s.criteria&&s.criteria[0]&&s.criteria[0].id;s.v=2;
+    if(s.resView==='local')s.resView='leaf';
+  }
+  return s;
+}
+function valid(s){return s&&s.v===2&&Array.isArray(s.criteria)&&Array.isArray(s.alts)&&s.criteria.length>0&&s.alts.length>1;}
+function load(){
+  try{var raw=localStorage.getItem(STORE);if(raw){var s=migrate(JSON.parse(raw));if(valid(s))return s;}}catch(e){}
+  try{var r1=localStorage.getItem(STORE_V1);if(r1){var s1=migrate(JSON.parse(r1));if(valid(s1))return s1;}}catch(e){}
+  return sample();
+}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}}
+var S=load();
+['critPW','subPW','subMode','subDirect','altPW','altMode','altDirect','altType'].forEach(function(k){if(!S[k]||typeof S[k]!=='object')S[k]={};});
+S.criteria.forEach(function(c){if(!Array.isArray(c.subs))c.subs=[];if(!c.altLevel)c.altLevel='sub';});
+function edited(){S.isSample=false;}
+function critIdx(id){for(var i=0;i<S.criteria.length;i++)if(S.criteria[i].id===id)return i;return -1;}
+function critById(id){var i=critIdx(id);return i<0?null:S.criteria[i];}
+
+/* ---------- model ---------- */
+function evalAlt(id,aIds){
+  var mode=S.altMode[id]||'pw';
+  if(mode==='direct'){
+    var d=S.altDirect[id]||{}, type=S.altType[id]||'benefit';
+    var vals=aIds.map(function(a){return numv(d[a]);});
+    var ok=vals.every(function(v){return isFinite(v)&&v>0;});
+    var w=ok?normalize(type==='cost'?vals.map(function(v){return 1/v;}):vals):aIds.map(function(){return 1/aIds.length;});
+    return {mode:mode,ok:ok,type:type,vals:vals,w:w,res:null};
+  }
+  var M=buildMatrix(S.altPW[id]||{},aIds);
+  var res=compute(M,S.method);
+  return {mode:mode,ok:true,w:res.w,res:res,M:M};
+}
+function model(){
+  var cIds=S.criteria.map(function(c){return c.id;}), aIds=S.alts.map(function(a){return a.id;});
+  var critM=buildMatrix(S.critPW,cIds);
+  var crit=compute(critM,S.method);
+  var subs=[],leaves=[];
+  S.criteria.forEach(function(c,k){
+    var wk=crit.w[k],info=null;
+    if(c.subs.length){
+      var sIds=c.subs.map(function(s){return s.id;}), mode=S.subMode[c.id]||'pw', local, res=null, ok=true, vals=null;
+      if(mode==='direct'){
+        var d=S.subDirect[c.id]||{};
+        vals=sIds.map(function(id){return numv(d[id]);});
+        ok=vals.every(function(v){return isFinite(v)&&v>0;});
+        local=ok?normalize(vals):sIds.map(function(){return 1/sIds.length;});
+      } else {res=compute(buildMatrix(S.subPW[c.id]||{},sIds),S.method);local=res.w;}
+      info={mode:mode,ok:ok,vals:vals,res:res,local:local,global:local.map(function(l){return l*wk;})};
+    }
+    subs[k]=info;
+    var level=c.subs.length?(c.altLevel||'sub'):'crit';
+    if(level==='sub'){
+      c.subs.forEach(function(s,j){leaves.push({id:s.id,k:k,j:j,name:s.name,code:cCode(k)+'.'+(j+1),local:info.local[j],global:info.local[j]*wk});});
+    } else leaves.push({id:c.id,k:k,j:null,name:c.name,code:cCode(k),local:1,global:wk});
+  });
+  leaves.forEach(function(L){L.ev=evalAlt(L.id,aIds);});
+  var critP=S.criteria.map(function(c,k){
+    return aIds.map(function(a,i){return leaves.reduce(function(s,L){return L.k===k?s+L.local*(L.ev.w[i]||0):s;},0);});
+  });
+  var scores=aIds.map(function(a,i){return critP.reduce(function(s,p,k){return s+crit.w[k]*p[i];},0);});
+  var order=aIds.map(function(a,i){return i;}).sort(function(x,y){return scores[y]-scores[x];});
+  var mats=[];
+  if(cIds.length>2)mats.push(crit.CR<0.1);
+  subs.forEach(function(si){if(si&&si.mode==='pw'&&si.res.n>2)mats.push(si.res.CR<0.1);});
+  leaves.forEach(function(L){if(L.ev.mode==='pw'&&aIds.length>2)mats.push(L.ev.res.CR<0.1);});
+  var incomplete=leaves.filter(function(L){return L.ev.mode==='direct'&&!L.ev.ok;}).length+subs.filter(function(si){return si&&si.mode==='direct'&&!si.ok;}).length;
+  var nSubs=S.criteria.reduce(function(a,c){return a+c.subs.length;},0);
+  return {cIds:cIds,aIds:aIds,crit:crit,critM:critM,subs:subs,leaves:leaves,critP:critP,scores:scores,order:order,
+    consOk:mats.filter(Boolean).length,consTotal:mats.length,incomplete:incomplete,nSubs:nSubs};
+}
+function cCode(i){return 'K'+(i+1);} function aCode(i){return 'A'+(i+1);}
+function ensureSel(m){
+  if(critIdx(S.subCrit)<0)S.subCrit=S.criteria[0].id;
+  if(critIdx(S.sensCrit)<0){S.sensCrit=S.criteria[0].id;S.sensX=null;}
+  if(!m.leaves.some(function(L){return L.id===S.altLeaf;}))S.altLeaf=m.leaves[0].id;
+  if(!TABS.some(function(t){return t[0]===S.tab;}))S.tab='struktur';
+}
+
+/* ---------- pieces ---------- */
+function opts(v){return SCALE.map(function(s){return '<option value="'+lab(s)+'"'+(Math.abs(s-v)<1e-9?' selected':'')+'>'+lab(s)+'</option>';}).join('');}
+function mxEditor(kind,cid,items,pw,r,codeFn){
+  var codes=items.map(function(it,i){return codeFn(i);});
+  var h='<div class="matrix-wrap"><table class="mx"><thead><tr><th>Baris dibanding kolom</th>';
+  items.forEach(function(it,i){h+='<th title="'+esc(it.name)+'">'+codes[i]+'</th>';});
+  h+='<th>Bobot</th></tr></thead><tbody>';
+  items.forEach(function(a,i){
+    h+='<tr><th scope="row" title="'+esc(a.name)+'"><span class="code">'+codes[i]+'</span> '+esc(trunc(a.name,30))+'</th>';
+    items.forEach(function(b,j){
+      if(i===j)h+='<td class="diag">1</td>';
+      else if(i<j){
+        var v=snap(getPW(pw,a.id,b.id));
+        var sid='pw-'+kind+'-'+(cid||'k')+'-'+a.id+'-'+b.id;
+        h+='<td class="in'+(v>1?' row':v<1?' col':'')+'"><select class="pw" id="'+sid+'" data-action="pw" data-kind="'+kind+'" data-crit="'+(cid||'')+'" data-a="'+a.id+'" data-b="'+b.id+'" aria-label="'+esc(a.name)+' dibanding '+esc(b.name)+'">'+opts(v)+'</select></td>';
+      } else h+='<td class="recip">'+lab(getPW(pw,a.id,b.id))+'</td>';
+    });
+    h+='<td class="wcol">'+(r&&r.w.length?pct(r.w[i]):'')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div class="legend-mx"><span><i class="sw" style="background:var(--accent-soft)"></i>Baris lebih penting (nilai &gt; 1)</span><span><i class="sw" style="background:var(--blue-soft)"></i>Kolom lebih penting (nilai &lt; 1)</span><span><i class="sw" style="background:var(--bg)"></i>Resiprokal, terisi otomatis</span></div>';
+  return h;
+}
+function scaleLegend(){
+  return '<div class="scale"><span><b>1</b>Sama penting</span><span><b>3</b>Sedikit lebih penting</span><span><b>5</b>Lebih penting</span><span><b>7</b>Sangat lebih penting</span><span><b>9</b>Mutlak lebih penting</span><span><b>2·4·6·8</b>Nilai antara</span><span><b>1/x</b>Kebalikannya: kolom lebih penting</span></div>';
+}
+function bars(items,codeFn,w,opt){
+  opt=opt||{};
+  var idx=items.map(function(it,i){return i;});
+  if(opt.sort!==false)idx.sort(function(a,b){return w[b]-w[a];});
+  var max=Math.max.apply(null,w.concat([1e-9]));
+  return '<div class="bars">'+idx.map(function(i,r){
+    return '<div class="bar-row'+(r===0?' top':'')+'"><span class="rk">'+(r+1)+'</span><span class="nm" title="'+esc(items[i].name)+'"><span class="code">'+codeFn(i)+'</span>'+esc(items[i].name)+'</span><div class="track"><div class="fill" style="width:'+(w[i]/max*100).toFixed(2)+'%"></div></div><span class="v">'+pct(w[i])+'</span></div>';
+  }).join('')+'</div>';
+}
+function consBox(r,items,codeFn){
+  if(!r||r.n===0)return '';
+  if(r.n<=2)return '<div class="cons"><span class="chip ok">Konsisten</span><span class="note">Matriks '+r.n+'×'+r.n+' selalu konsisten (CR = 0).</span></div>';
+  var ok=r.CR<0.1;
+  var h='<div class="cons"><div class="kv"><span>λmax</span><b>'+r.lmax.toFixed(4)+'</b></div><div class="kv"><span>CI</span><b>'+r.CI.toFixed(4)+'</b></div><div class="kv"><span>RI (n='+r.n+')</span><b>'+r.RI.toFixed(2)+'</b></div><div class="kv"><span>CR</span><b>'+pct(r.CR)+'</b></div><span class="chip '+(ok?'ok':'bad')+'">'+(ok?'Konsisten · CR &lt; 10%':'Perlu ditinjau · CR ≥ 10%')+'</span></div>';
+  if(!ok&&items){
+    var wp=worstPair(r.M||[],r.w);
+    if(wp)h+='<p class="hint">Penilaian yang paling menyimpang: <b>'+codeFn(wp.i)+' '+esc(items[wp.i].name)+'</b> dibanding <b>'+codeFn(wp.j)+' '+esc(items[wp.j].name)+'</b>. Saat ini diisi <b>'+lab(wp.given)+'</b>; yang selaras dengan penilaian lain sekitar <b>'+lab(wp.sugg)+'</b>.</p>';
+  }
+  return h;
+}
+function stepsHTML(items,codeFn,r){
+  if(!r||r.n<2)return '';
+  var n=r.n,M=r.M,codes=items.map(function(it,i){return codeFn(i);});
+  var h='<details><summary>Lihat langkah perhitungan</summary><div class="steps-body">';
+  h+='<p class="note"><b>Langkah 1.</b> Jumlahkan setiap kolom matriks.</p><div class="matrix-wrap"><table class="mx"><thead><tr><th></th>'+codes.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>';
+  M.forEach(function(row,i){h+='<tr><th scope="row">'+codes[i]+'</th>'+row.map(function(v){return '<td class="num">'+lab(v)+'</td>';}).join('')+'</tr>';});
+  h+='<tr class="total"><th scope="row">Total</th>'+r.col.map(function(v){return '<td class="num">'+f4(v)+'</td>';}).join('')+'</tr></tbody></table></div>';
+  h+='<p class="note"><b>Langkah 2–3.</b> Bagi setiap sel dengan total kolomnya, lalu rata-ratakan setiap baris menjadi bobot.'+(S.method==='eig'?' Pada metode eigenvector, bobot ini lalu disempurnakan dengan iterasi pangkat (power iteration).':'')+'</p><div class="matrix-wrap"><table class="mx"><thead><tr><th></th>'+codes.map(function(c){return '<th>'+c+'</th>';}).join('')+'<th>Bobot w</th></tr></thead><tbody>';
+  r.N.forEach(function(row,i){h+='<tr><th scope="row">'+codes[i]+'</th>'+row.map(function(v){return '<td class="num">'+f4(v)+'</td>';}).join('')+'<td class="wcol">'+f4(r.w[i])+'</td></tr>';});
+  h+='</tbody></table></div>';
+  if(n>2){
+    h+='<p class="note"><b>Langkah 4.</b> Hitung Aw, bagi dengan w, lalu rata-ratakan untuk memperoleh λmax.</p><div class="matrix-wrap"><table class="mx"><thead><tr><th></th><th>(Aw)ᵢ</th><th>wᵢ</th><th>(Aw)ᵢ / wᵢ</th></tr></thead><tbody>';
+    r.Aw.forEach(function(v,i){h+='<tr><th scope="row">'+codes[i]+'</th><td class="num">'+f4(v)+'</td><td class="num">'+f4(r.w[i])+'</td><td class="num">'+f4(r.ratio[i])+'</td></tr>';});
+    h+='</tbody></table></div>';
+    h+='<div class="formula">λmax = '+r.lmax.toFixed(4)+'<br>CI = (λmax − n) / (n − 1) = ('+r.lmax.toFixed(4)+' − '+n+') / '+(n-1)+' = '+r.CI.toFixed(4)+'<br>CR = CI / RI = '+r.CI.toFixed(4)+' / '+r.RI.toFixed(2)+' = '+pct(r.CR)+(n>15?'<br>Catatan: RI untuk n &gt; 15 memakai 1,59 (pendekatan).':'')+'</div>';
+  } else h+='<p class="note">Matriks 2×2 selalu konsisten, jadi CR = 0.</p>';
+  return h+'</div></details>';
+}
+
+/* ---------- hierarchy chart ---------- */
+function hierarchyHTML(m){
+  var colW=196,gap=16,pad=16,padL=112,gh=66,bh=78,sh=64,sg=8;
+  var nC=S.criteria.length, nA=S.alts.length, hasSubs=m.nSubs>0;
+  var cols=Math.max(nC,nA,2);
+  var innerW=cols*(colW+gap)-gap, W=padL+innerW+pad;
+  var maxS=Math.max.apply(null,S.criteria.map(function(c){return c.subs.length;}).concat([0]));
+  var yG=18,yC=yG+gh+44,yS=yC+bh+16;
+  var yBus=hasSubs?yS+maxS*(sh+sg)-sg+28:yC+bh+34, yA=yBus+34, H=yA+bh+18;
+  var cOff=(innerW-(nC*(colW+gap)-gap))/2;
+  var boxes='',lines='',busX=[];
+  var stroke='var(--muted)';
+  var gW=Math.min(innerW,460), gX=padL+(innerW-gW)/2, gC=gX+gW/2;
+  boxes+='<div class="hb goal" style="left:'+gX+'px;top:'+yG+'px;width:'+gW+'px;height:'+gh+'px"><span class="k">TUJUAN</span><span class="t">'+esc(S.goal||'Tujuan keputusan')+'</span></div>';
+  var yMidGC=yG+gh+22;
+  S.criteria.forEach(function(c,k){
+    var x0=padL+cOff+k*(colW+gap), cx=x0+colW/2;
+    lines+='<path d="M'+gC+' '+(yG+gh)+' V'+yMidGC+' H'+cx+' V'+yC+'" fill="none" stroke="'+stroke+'" stroke-width="1.5"/>';
+    boxes+='<div class="hb crit" style="left:'+x0+'px;top:'+yC+'px;width:'+colW+'px;height:'+bh+'px" title="'+esc(c.name)+'"><span class="k">'+cCode(k)+'</span><span class="t">'+esc(c.name)+'</span><span class="w">'+pct(m.crit.w[k])+'</span></div>';
+    if(c.subs.length){
+      var info=m.subs[k], level=c.altLevel||'sub', spX=x0+10, dash=level==='crit'?' stroke-dasharray="4 4"':'';
+      c.subs.forEach(function(s,j){
+        var sy=yS+j*(sh+sg);
+        lines+='<path d="M'+spX+' '+(sy+sh/2)+' H'+(x0+22)+'" fill="none" stroke="'+stroke+'" stroke-width="1.2"'+dash+'/>';
+        boxes+='<div class="hb sub'+(level==='crit'?' info':'')+'" style="left:'+(x0+22)+'px;top:'+sy+'px;width:'+(colW-22)+'px;height:'+sh+'px" title="'+esc(s.name)+'"><span class="t"><b class="sc">'+cCode(k)+'.'+(j+1)+'</b> '+esc(s.name)+'</span><span class="w">'+pct(info.local[j],1)+' · gl '+pct(info.global[j],2)+'</span></div>';
+      });
+      var lastC=yS+(c.subs.length-1)*(sh+sg)+sh/2;
+      lines+='<path d="M'+spX+' '+(yC+bh)+' V'+lastC+'" fill="none" stroke="'+stroke+'" stroke-width="1.2"'+dash+'/>';
+      lines+='<path d="M'+spX+' '+(level==='crit'?yC+bh:lastC)+' V'+yBus+'" fill="none" stroke="'+stroke+'" stroke-width="1.5"/>';
+      busX.push(spX);
+    } else {
+      lines+='<path d="M'+cx+' '+(yC+bh)+' V'+yBus+'" fill="none" stroke="'+stroke+'" stroke-width="1.5"/>';busX.push(cx);
+    }
+  });
+  var aSlot=innerW/nA, aw=Math.min(colW,aSlot-gap);
+  var top=m.order[0], rank={};m.order.forEach(function(i,r){rank[i]=r+1;});
+  S.alts.forEach(function(a,i){
+    var acx=padL+aSlot*(i+0.5);busX.push(acx);
+    lines+='<path d="M'+acx+' '+yBus+' V'+yA+'" fill="none" stroke="'+stroke+'" stroke-width="1.5"/>';
+    boxes+='<div class="hb alt'+(i===top?' top':'')+'" style="left:'+(acx-aw/2)+'px;top:'+yA+'px;width:'+aw+'px;height:'+bh+'px" title="'+esc(a.name)+'"><span class="k">'+aCode(i)+' · peringkat '+rank[i]+'</span><span class="t">'+esc(a.name)+'</span><span class="w">'+pct(m.scores[i])+'</span></div>';
+  });
+  var bx1=Math.min.apply(null,busX),bx2=Math.max.apply(null,busX);
+  lines+='<path d="M'+bx1+' '+yBus+' H'+bx2+'" fill="none" stroke="'+stroke+'" stroke-width="2"/>';
+  var lv='<span class="lv" style="top:'+(yG+gh/2-8)+'px">Tujuan</span><span class="lv" style="top:'+(yC+bh/2-8)+'px">Kriteria</span>'+(hasSubs?'<span class="lv" style="top:'+(yS+sh/2-8)+'px">Sub-kriteria</span>':'')+'<span class="lv" style="top:'+(yA+bh/2-8)+'px">Alternatif</span>';
+  var fit=S.hierFit!==false;
+  var h='<div class="row-split"><span class="note">'+(fit?'Bagan diperkecil agar muat di layar.':'Ukuran asli; geser ke samping untuk melihat seluruh bagan.')+'</span><div class="seg" role="group" aria-label="Ukuran bagan"><button type="button" data-action="hierFit" data-val="1" aria-pressed="'+fit+'">Muat layar</button><button type="button" data-action="hierFit" data-val="0" aria-pressed="'+(!fit)+'">Ukuran asli</button></div></div>';
+  h+='<div class="hier-wrap"><div class="hier-box"><div class="hier" data-w="'+W+'" data-h="'+H+'" style="width:'+W+'px;height:'+H+'px"><svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" aria-hidden="true">'+lines+'</svg>'+lv+boxes+'</div></div></div>';
+  h+='<div class="hier-legend"><span>Kriteria = bobot kriteria · sub-kriteria = bobot lokal · gl = bobot global · alternatif = skor akhir dan peringkat</span>'+(S.criteria.some(function(c){return c.subs.length&&c.altLevel==='crit';})?'<span>Sub-kriteria bergaris putus = hanya rincian bobot; alternatif dinilai pada kriteria utamanya</span>':'')+(S.criteria.some(function(c){return c.subs.length&&c.altLevel!=='crit';})?'<span>Sub-kriteria bergaris tegas = alternatif dinilai pada setiap sub-kriteria tersebut</span>':'')+'</div>';
+  return h;
+}
+function applyHierFit(){
+  var wraps=document.querySelectorAll('.hier-wrap');
+  for(var i=0;i<wraps.length;i++){
+    var w=wraps[i],box=w.querySelector('.hier-box'),h=w.querySelector('.hier');if(!h)continue;
+    var W=Number(h.dataset.w),H=Number(h.dataset.h),avail=w.clientWidth-2;
+    var s=S.hierFit===false?1:Math.min(1,avail/W);
+    h.style.transformOrigin='top left';
+    h.style.transform=s<1?'scale('+s.toFixed(4)+')':'';
+    box.style.width=s<1?(W*s)+'px':W+'px';
+    box.style.height=(H*s)+'px';
+  }
+}
+window.addEventListener('resize',function(){applyHierFit();});
+
+/* ---------- tabs ---------- */
+function itemRow(kind,it,i,n,min,code,critId){
+  var dc=critId?' data-crit="'+critId+'"':'';
+  return '<div class="item'+(kind==='sub'?' subitem':'')+'"><span class="code">'+code+'</span><input type="text" id="name-'+it.id+'" data-action="name" data-kind="'+kind+'" data-id="'+it.id+'"'+dc+' value="'+esc(it.name)+'" aria-label="Nama '+code+'"><div class="item-btns">'+
+    '<button class="iconbtn" type="button" data-action="move" data-kind="'+kind+'" data-id="'+it.id+'"'+dc+' data-dir="-1" aria-label="Naikkan '+code+'" '+(i===0?'disabled':'')+'>↑</button>'+
+    '<button class="iconbtn" type="button" data-action="move" data-kind="'+kind+'" data-id="'+it.id+'"'+dc+' data-dir="1" aria-label="Turunkan '+code+'" '+(i===n-1?'disabled':'')+'>↓</button>'+
+    '<button class="iconbtn" type="button" data-action="del" data-kind="'+kind+'" data-id="'+it.id+'"'+dc+' aria-label="Hapus '+code+'" '+(n<=min?'disabled':'')+'>×</button></div></div>';
+}
+function critListBlock(){
+  var h='<div class="list"><h3>Kriteria ('+S.criteria.length+') dan sub-kriteria</h3>';
+  S.criteria.forEach(function(c,k){
+    h+='<div class="cblock">'+itemRow('crit',c,k,S.criteria.length,1,cCode(k))+'<div class="subs">';
+    c.subs.forEach(function(s,j){h+=itemRow('sub',s,j,c.subs.length,0,cCode(k)+'.'+(j+1),c.id);});
+    h+='<div class="addrow subadd"><input type="text" id="new-sub-'+c.id+'" placeholder="Tambah sub-kriteria untuk '+cCode(k)+' (opsional)" aria-label="Sub-kriteria baru untuk '+cCode(k)+'"><button class="btn small" type="button" data-action="add" data-kind="sub" data-crit="'+c.id+'">+ Sub</button></div></div></div>';
+  });
+  h+='<div class="addrow"><input type="text" id="new-crit" placeholder="Nama kriteria baru" aria-label="Nama kriteria baru"><button class="btn small" type="button" data-action="add" data-kind="crit">Tambah kriteria</button></div>';
+  h+='<details><summary>Tambah banyak kriteria sekaligus</summary><div class="bulk"><textarea id="bulk-crit" placeholder="Satu nama per baris"></textarea><button class="btn small" type="button" data-action="bulk" data-kind="crit">Tambahkan semua</button></div></details>';
+  return h+'</div>';
+}
+function altListBlock(){
+  var h='<div class="list"><h3>Alternatif ('+S.alts.length+')</h3>';
+  S.alts.forEach(function(a,i){h+=itemRow('alt',a,i,S.alts.length,2,aCode(i));});
+  h+='<div class="addrow"><input type="text" id="new-alt" placeholder="Nama alternatif baru" aria-label="Nama alternatif baru"><button class="btn small" type="button" data-action="add" data-kind="alt">Tambah</button></div>';
+  h+='<details><summary>Tambah banyak alternatif sekaligus</summary><div class="bulk"><textarea id="bulk-alt" placeholder="Satu nama per baris"></textarea><button class="btn small" type="button" data-action="bulk" data-kind="alt">Tambahkan semua</button></div></details>';
+  return h+'</div>';
+}
+function tabStruktur(m){
+  var nC=m.cIds.length,nA=m.aIds.length;
+  var subCmp=S.criteria.reduce(function(a,c){return a+c.subs.length*(c.subs.length-1)/2;},0);
+  return '<section class="sheet"><div class="sheet-head"><div><h2>Bagan hierarki AHP</h2><p class="lead">Bagan ini mengikuti struktur dan bobot yang Anda isi, dan diperbarui otomatis.</p></div></div>'+hierarchyHTML(m)+'</section>'+
+    '<section class="sheet"><div><h2>Struktur keputusan</h2><p class="lead">Tentukan tujuan, kriteria, sub-kriteria (opsional), dan alternatif. Tidak ada batas jumlah.</p></div>'+
+    '<label class="field" for="goal">Tujuan keputusan<input type="text" id="goal" data-action="goal" value="'+esc(S.goal)+'" placeholder="Misalnya: memilih pemasok utama"></label>'+
+    '<div class="grid2">'+critListBlock()+altListBlock()+'</div>'+
+    '<p class="note">Jumlah perbandingan: kriteria '+(nC*(nC-1)/2)+' · sub-kriteria '+subCmp+' · alternatif '+(nA*(nA-1)/2)+' per elemen penilaian ('+m.leaves.length+' elemen). Untuk alternatif yang sangat banyak, pakai mode “Nilai langsung”.</p></section>';
+}
+function tabKriteria(m){
+  var n=m.cIds.length;
+  if(n===1)return '<section class="sheet"><h2>Bobot kriteria</h2><p class="lead">Baru ada satu kriteria, jadi bobotnya 100%. Tambahkan kriteria di langkah Struktur untuk mulai membandingkan.</p></section>';
+  var r=m.crit;
+  return '<section class="sheet"><div><h2>Perbandingan berpasangan kriteria</h2><p class="lead">Isi segitiga atas: seberapa penting kriteria di baris dibanding kriteria di kolom. Segitiga bawah terisi otomatis dengan kebalikannya.</p></div>'+scaleLegend()+mxEditor('crit',null,S.criteria,S.critPW,r,cCode)+'</section>'+
+    '<section class="sheet"><h2>Bobot dan konsistensi</h2>'+bars(S.criteria,cCode,r.w)+consBox(r,S.criteria,cCode)+stepsHTML(S.criteria,cCode,r)+'</section>';
+}
+function tabSub(m){
+  var k=critIdx(S.subCrit), c=S.criteria[k], info=m.subs[k];
+  var h='<section class="sheet"><div><h2>Bobot sub-kriteria</h2><p class="lead">Pilih kriteria. Bobot lokal sub-kriteria dihitung dari perbandingan berpasangan (atau diisi langsung), lalu bobot global = bobot kriteria × bobot lokal.</p></div><div class="critchips" role="group" aria-label="Pilih kriteria">';
+  S.criteria.forEach(function(cc,i){
+    var si=m.subs[i], st=!cc.subs.length?'na':si.mode==='direct'?(si.ok?'na':'bad'):(si.res.n<=2||si.res.CR<0.1?'ok':'bad');
+    h+='<button class="cchip" type="button" data-action="subCrit" data-id="'+cc.id+'" aria-pressed="'+(cc.id===S.subCrit)+'"><span class="dot '+st+'"></span><span class="t">'+cCode(i)+' · '+esc(cc.name)+' ('+cc.subs.length+')</span></button>';
+  });
+  h+='</div></section>';
+  h+='<section class="sheet"><div class="sheet-head"><div><p class="eyebrow">'+cCode(k)+' · bobot kriteria '+pct(m.crit.w[k])+'</p><h2>'+esc(c.name)+'</h2></div>';
+  if(!c.subs.length){
+    h+='</div><p class="lead">Kriteria ini belum punya sub-kriteria. Tambahkan di sini atau di langkah Struktur. Tanpa sub-kriteria, alternatif dinilai langsung pada kriteria ini.</p>';
+    h+='<div class="addrow subadd" style="max-width:560px"><input type="text" id="new-sub-'+c.id+'" placeholder="Nama sub-kriteria" aria-label="Sub-kriteria baru untuk '+cCode(k)+'"><button class="btn small" type="button" data-action="add" data-kind="sub" data-crit="'+c.id+'">+ Sub</button></div>';
+  } else {
+    var codeFn=function(j){return cCode(k)+'.'+(j+1);};
+    h+='<div class="ctrls"><div class="ctrl">Cara menentukan bobot lokal<div class="seg" role="group"><button type="button" data-action="subMode" data-val="pw" aria-pressed="'+(info.mode==='pw')+'">Perbandingan berpasangan</button><button type="button" data-action="subMode" data-val="direct" aria-pressed="'+(info.mode==='direct')+'">Bobot langsung</button></div></div>'+
+      '<div class="ctrl">Alternatif dinilai pada<div class="seg" role="group"><button type="button" data-action="altLevel" data-val="sub" aria-pressed="'+((c.altLevel||'sub')==='sub')+'">Setiap sub-kriteria</button><button type="button" data-action="altLevel" data-val="crit" aria-pressed="'+(c.altLevel==='crit')+'">Kriteria utama saja</button></div></div></div></div>';
+    if(c.altLevel==='crit')h+='<p class="info">Alternatif dinilai pada kriteria utama '+cCode(k)+' (seperti di kasus Kilang Nusantara). Sub-kriteria di sini hanya merinci bobot dan tidak memengaruhi skor alternatif.</p>';
+    if(info.mode==='pw'){
+      h+=scaleLegend()+mxEditor('sub',c.id,c.subs,S.subPW[c.id]||{},info.res,codeFn)+consBox(info.res,c.subs,codeFn)+stepsHTML(c.subs,codeFn,info.res);
+    } else {
+      var d=S.subDirect[c.id]||{};
+      h+='<p class="lead">Masukkan angka positif (misalnya persentase). Angka akan dinormalkan sehingga totalnya 100%.</p><div class="matrix-wrap"><table class="mx"><thead><tr><th>Sub-kriteria</th><th>Nilai</th><th>Bobot lokal</th></tr></thead><tbody>';
+      c.subs.forEach(function(s,j){h+='<tr><th scope="row" title="'+esc(s.name)+'"><span class="code">'+codeFn(j)+'</span> '+esc(trunc(s.name,40))+'</th><td class="in"><input type="number" step="any" min="0" id="sd-'+c.id+'-'+s.id+'" data-action="subDirect" data-crit="'+c.id+'" data-id="'+s.id+'" value="'+(d[s.id]==null?'':esc(d[s.id]))+'" aria-label="Nilai '+esc(s.name)+'" style="width:140px;text-align:right;font-family:var(--font-mono)"></td><td class="wcol">'+(info.ok?pct(info.local[j]):'–')+'</td></tr>';});
+      h+='</tbody></table></div>'+(info.ok?'':'<p class="hint">Isi semua nilai dengan angka lebih dari 0. Sampai lengkap, sub-kriteria dihitung sama rata.</p>');
+    }
+    h+='<h3>Bobot lokal dan global</h3><div class="matrix-wrap"><table class="mx"><thead><tr><th>Sub-kriteria</th><th>Lokal</th><th>Global</th></tr></thead><tbody>';
+    c.subs.forEach(function(s,j){h+='<tr><th scope="row" title="'+esc(s.name)+'"><span class="code">'+codeFn(j)+'</span> '+esc(trunc(s.name,44))+'</th><td class="num">'+pct(info.local[j])+'</td><td class="wcol">'+pct(info.global[j])+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='</section>';
+  if(m.nSubs){
+    var all=[];
+    S.criteria.forEach(function(cc,i){cc.subs.forEach(function(s,j){all.push({name:s.name,code:cCode(i)+'.'+(j+1),g:m.subs[i].global[j]});});});
+    h+='<section class="sheet"><div><h2>Bobot global semua sub-kriteria</h2><p class="lead">Diurutkan dari yang paling berpengaruh pada keputusan.</p></div>'+bars(all,function(i){return all[i].code;},all.map(function(a){return a.g;}))+'</section>';
+  }
+  return h;
+}
+function tabAlternatif(m){
+  var L=null,li=0;m.leaves.forEach(function(x,i){if(x.id===S.altLeaf){L=x;li=i;}});
+  var ev=L.ev;
+  var h='<section class="sheet"><div><h2>Penilaian alternatif</h2><p class="lead">Alternatif dinilai pada setiap elemen terbawah hierarki: sub-kriteria, atau kriteria yang tidak punya sub-kriteria. Pilih elemen, lalu bandingkan berpasangan atau isi nilai langsung.</p></div><div class="critchips" role="group" aria-label="Pilih elemen penilaian">';
+  m.leaves.forEach(function(x){
+    var st=x.ev.mode==='direct'?(x.ev.ok?'na':'bad'):(m.aIds.length<=2||x.ev.res.CR<0.1?'ok':'bad');
+    h+='<button class="cchip" type="button" data-action="altLeaf" data-id="'+x.id+'" aria-pressed="'+(x.id===S.altLeaf)+'"><span class="dot '+st+'"></span><span class="t">'+x.code+' · '+esc(x.name)+'</span></button>';
+  });
+  h+='</div></section>';
+  var parent=S.criteria[L.k];
+  h+='<section class="sheet"><div class="sheet-head"><div><p class="eyebrow">'+L.code+' · bobot global '+pct(L.global)+(L.j!=null?' · bagian dari '+cCode(L.k)+' '+esc(trunc(parent.name,30)):'')+'</p><h2>'+esc(L.name)+'</h2></div>'+
+    '<div class="seg" role="group" aria-label="Cara menilai"><button type="button" data-action="mode" data-val="pw" aria-pressed="'+(ev.mode==='pw')+'">Perbandingan berpasangan</button><button type="button" data-action="mode" data-val="direct" aria-pressed="'+(ev.mode==='direct')+'">Nilai langsung</button></div></div>';
+  if(ev.mode==='pw'){
+    h+=scaleLegend()+mxEditor('alt',L.id,S.alts,S.altPW[L.id]||{},ev.res,aCode)+'<h3>Prioritas alternatif</h3>'+bars(S.alts,aCode,ev.res.w)+consBox(ev.res,S.alts,aCode)+stepsHTML(S.alts,aCode,ev.res);
+  } else {
+    var d=S.altDirect[L.id]||{};
+    h+='<div class="row-split"><p class="lead">Masukkan nilai positif untuk setiap alternatif. Bobot = nilai ÷ total nilai (benefit) atau (1/nilai) ÷ total (1/nilai) (cost).</p><label class="field" for="dtype-'+L.id+'">Jenis kriteria<select id="dtype-'+L.id+'" data-action="dtype" data-crit="'+L.id+'"><option value="benefit"'+(ev.type==='benefit'?' selected':'')+'>Benefit: makin besar makin baik</option><option value="cost"'+(ev.type==='cost'?' selected':'')+'>Cost: makin kecil makin baik</option></select></label></div>';
+    h+='<div class="matrix-wrap"><table class="mx"><thead><tr><th>Alternatif</th><th>Nilai</th><th>Bobot</th></tr></thead><tbody>';
+    S.alts.forEach(function(a,i){
+      h+='<tr><th scope="row" title="'+esc(a.name)+'"><span class="code">'+aCode(i)+'</span> '+esc(trunc(a.name,40))+'</th><td class="in"><input type="number" step="any" min="0" id="dv-'+L.id+'-'+a.id+'" data-action="direct" data-crit="'+L.id+'" data-id="'+a.id+'" value="'+(d[a.id]==null?'':esc(d[a.id]))+'" aria-label="Nilai '+esc(a.name)+'" style="width:140px;text-align:right;font-family:var(--font-mono)"></td><td class="wcol">'+(ev.ok?pct(ev.w[i]):'–')+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    h+=ev.ok?'<h3>Prioritas alternatif</h3>'+bars(S.alts,aCode,ev.w):'<p class="hint">Isi semua nilai dengan angka lebih dari 0. Sampai lengkap, elemen ini dihitung dengan bobot sama rata.</p>';
+  }
+  h+='<div class="row-split"><button class="btn small" type="button" data-action="altNav" data-dir="-1" '+(li===0?'disabled':'')+'>← Elemen sebelumnya</button><button class="btn small" type="button" data-action="altNav" data-dir="1" '+(li===m.leaves.length-1?'disabled':'')+'>Elemen berikutnya →</button></div>';
+  return h+'</section>';
+}
+function tabHasil(m){
+  var h='<section class="sheet"><div><h2>Peringkat akhir</h2><p class="lead">Skor = Σ (bobot global elemen × prioritas alternatif pada elemen itu). Skor adalah prioritas relatif, bukan peluang berhasil.</p></div>'+bars(S.alts,aCode,m.scores)+'</section>';
+  h+='<section class="sheet"><div><h2>Bagan hierarki dengan hasil</h2></div>'+hierarchyHTML(m)+'</section>';
+  var view=S.resView||'crit';
+  var titles={crit:'Prioritas per kriteria utama',leaf:'Prioritas per elemen penilaian',contrib:'Kontribusi tiap elemen (bobot global × prioritas)'};
+  h+='<section class="sheet"><div class="sheet-head"><h2>'+titles[view]+'</h2><div class="seg" role="group" aria-label="Tampilan tabel"><button type="button" data-action="resView" data-val="crit" aria-pressed="'+(view==='crit')+'">Per kriteria</button><button type="button" data-action="resView" data-val="leaf" aria-pressed="'+(view==='leaf')+'">Per elemen</button><button type="button" data-action="resView" data-val="contrib" aria-pressed="'+(view==='contrib')+'">Kontribusi</button></div></div>';
+  var cols=view==='crit'?S.criteria.map(function(c,k){return {code:cCode(k),name:c.name,w:m.crit.w[k],p:m.critP[k],mult:m.crit.w[k]};}):m.leaves.map(function(L){return {code:L.code,name:L.name,w:L.global,p:L.ev.w,mult:L.global};});
+  h+='<div class="matrix-wrap"><table class="mx"><thead><tr><th>Alternatif</th>';
+  cols.forEach(function(c){h+='<th title="'+esc(c.name)+'">'+c.code+'<br><span style="font-weight:500;color:var(--ink-2)">'+pct(c.w)+'</span></th>';});
+  h+='<th>Skor</th><th>Peringkat</th></tr></thead><tbody>';
+  var rank={};m.order.forEach(function(i,r){rank[i]=r+1;});
+  S.alts.forEach(function(a,i){
+    h+='<tr><th scope="row" title="'+esc(a.name)+'"><span class="code">'+aCode(i)+'</span> '+esc(trunc(a.name,30))+'</th>';
+    cols.forEach(function(c){
+      var best=c.p.every(function(v){return v<=c.p[i]+1e-12;});
+      var v=view==='contrib'?c.mult*c.p[i]:c.p[i];
+      h+='<td class="num'+(best?' best':'')+'">'+pct(v)+'</td>';
+    });
+    h+='<td class="wcol">'+pct(m.scores[i])+'</td><td class="num">'+rank[i]+'</td></tr>';
+  });
+  h+='</tbody></table></div><p class="note">Angka tebal berwarna = alternatif terbaik pada kolom tersebut. Arahkan kursor ke kode untuk melihat nama lengkap.</p></section>';
+  h+='<section class="sheet"><h2>Konsistensi semua matriks</h2><div class="matrix-wrap"><table class="mx"><thead><tr><th>Matriks</th><th>Ukuran</th><th>λmax</th><th>CI</th><th>RI</th><th>CR</th><th>Status</th></tr></thead><tbody>';
+  function crow(name,r){
+    if(r.n<=2)return '<tr><th scope="row">'+name+'</th><td>'+r.n+'×'+r.n+'</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">0.00%</td><td><span class="chip ok">Konsisten</span></td></tr>';
+    var ok=r.CR<0.1;
+    return '<tr><th scope="row">'+name+'</th><td>'+r.n+'×'+r.n+'</td><td class="num">'+r.lmax.toFixed(4)+'</td><td class="num">'+r.CI.toFixed(4)+'</td><td class="num">'+r.RI.toFixed(2)+'</td><td class="num">'+pct(r.CR)+'</td><td><span class="chip '+(ok?'ok':'bad')+'">'+(ok?'Konsisten':'Perlu ditinjau')+'</span></td></tr>';
+  }
+  function drow(name,size,ok){return '<tr><th scope="row">'+name+'</th><td>'+size+'</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td><span class="chip '+(ok?'na':'bad')+'">'+(ok?'Nilai langsung':'Nilai belum lengkap')+'</span></td></tr>';}
+  h+='<tr class="group"><td colspan="7">Kriteria</td></tr>'+crow('Kriteria utama',m.crit);
+  if(m.nSubs){
+    h+='<tr class="group"><td colspan="7">Sub-kriteria</td></tr>';
+    S.criteria.forEach(function(c,k){var si=m.subs[k];if(!si)return;var nm='Sub '+cCode(k)+' · '+esc(trunc(c.name,32));h+=si.mode==='direct'?drow(nm,c.subs.length+' nilai',si.ok):crow(nm,si.res);});
+  }
+  h+='<tr class="group"><td colspan="7">Alternatif per elemen</td></tr>';
+  m.leaves.forEach(function(L){var nm=L.code+' · '+esc(trunc(L.name,34));h+=L.ev.mode==='direct'?drow(nm,m.aIds.length+' nilai',L.ev.ok):crow(nm,L.ev.res);});
+  return h+'</tbody></table></div></section>';
+}
+/* sensitivity (main criteria) */
+function sensData(m,k){
+  var wk=m.crit.w[k], n=m.aIds.length, P=[], Q=[];
+  for(var i=0;i<n;i++){
+    P[i]=m.critP[k][i];
+    var q=0;
+    if(wk<1-1e-12){for(var j=0;j<m.critP.length;j++)if(j!==k)q+=m.crit.w[j]*m.critP[j][i];q=q/(1-wk);}else q=P[i];
+    Q[i]=q;
+  }
+  return {wk:wk,P:P,Q:Q};
+}
+function scoreAt(d,i,x){return x*d.P[i]+(1-x)*d.Q[i];}
+function leaderAt(d,x){var b=0;for(var i=1;i<d.P.length;i++)if(scoreAt(d,i,x)>scoreAt(d,b,x)+1e-12)b=i;return b;}
+function crossings(d){
+  var out=[],steps=2000,prev=leaderAt(d,0);
+  for(var s=1;s<=steps;s++){
+    var x=s/steps,l=leaderAt(d,x);
+    if(l!==prev){
+      var den=(d.P[prev]-d.Q[prev])-(d.P[l]-d.Q[l]);
+      var xs=den!==0?(d.Q[l]-d.Q[prev])/den:x;
+      out.push({x:xs,from:prev,to:l,score:scoreAt(d,l,xs)});prev=l;
+    }
+  }
+  return out;
+}
+function sensChart(m,k,x){
+  var d=sensData(m,k), n=d.P.length;
+  var W=760,H=360,pl=52,pr=170,pt=18,pb=48,pw=W-pl-pr,ph=H-pt-pb;
+  var mx=0;for(var i=0;i<n;i++)mx=Math.max(mx,d.P[i],d.Q[i]);
+  var ymax=Math.min(1,Math.max(0.1,Math.ceil(mx*10+1e-9)/10));
+  var step=ymax<=0.5?0.1:0.2;
+  function X(v){return pl+v*pw;} function Y(v){return pt+ph-(v/ymax)*ph;}
+  var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Skor setiap alternatif terhadap bobot '+esc(S.criteria[k].name)+'">';
+  for(var t=0;t<=ymax+1e-9;t+=step){s+='<line class="grid" x1="'+pl+'" x2="'+(pl+pw)+'" y1="'+Y(t)+'" y2="'+Y(t)+'"/><text class="ct" x="'+(pl-8)+'" y="'+(Y(t)+4)+'" text-anchor="end">'+Math.round(t*100)+'%</text>';}
+  [0,0.25,0.5,0.75,1].forEach(function(v){s+='<text class="ct" x="'+X(v)+'" y="'+(pt+ph+20)+'" text-anchor="middle">'+Math.round(v*100)+'%</text>';});
+  s+='<text class="ct" x="'+(pl+pw/2)+'" y="'+(H-6)+'" text-anchor="middle">Bobot '+esc(cCode(k))+' →</text>';
+  s+='<line class="axis" x1="'+pl+'" x2="'+(pl+pw)+'" y1="'+Y(0)+'" y2="'+Y(0)+'"/>';
+  s+='<line x1="'+X(d.wk)+'" x2="'+X(d.wk)+'" y1="'+pt+'" y2="'+Y(0)+'" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="6 5"/>';
+  s+='<text class="ct" x="'+(X(d.wk)+5)+'" y="'+(pt+10)+'">awal</text>';
+  for(i=0;i<n;i++){s+='<line x1="'+X(0)+'" y1="'+Y(d.Q[i])+'" x2="'+X(1)+'" y2="'+Y(d.P[i])+'" stroke="'+COLORS[i%COLORS.length]+'" stroke-width="3" stroke-linecap="round"/>';}
+  s+='<line x1="'+X(x)+'" x2="'+X(x)+'" y1="'+pt+'" y2="'+Y(0)+'" stroke="var(--ink)" stroke-width="2"/>';
+  for(i=0;i<n;i++){s+='<circle cx="'+X(x)+'" cy="'+Y(scoreAt(d,i,x))+'" r="5" fill="'+COLORS[i%COLORS.length]+'" stroke="var(--surface)" stroke-width="2"/>';}
+  var labs=[];for(i=0;i<n;i++)labs.push({i:i,y:Y(d.P[i])});
+  labs.sort(function(a,b){return a.y-b.y;});
+  for(var j=1;j<labs.length;j++)if(labs[j].y-labs[j-1].y<15)labs[j].y=labs[j-1].y+15;
+  labs.forEach(function(L){s+='<text class="cl" x="'+(X(1)+10)+'" y="'+(L.y+4)+'" fill="'+COLORS[L.i%COLORS.length]+'">'+aCode(L.i)+' '+esc(trunc(S.alts[L.i].name,16))+'</text>';});
+  return s+'</svg>';
+}
+function sensLiveHTML(m,k,x){
+  var d=sensData(m,k), n=d.P.length;
+  var sc=[];for(var i=0;i<n;i++)sc.push(scoreAt(d,i,x));
+  var cr=crossings(d), lead=leaderAt(d,x), h={};
+  h.readout='<span>Bobot '+cCode(k)+'</span><b>'+pct(x)+'</b><span class="note">awal '+pct(d.wk)+' · kriteria lain diskalakan proporsional · teratas: <strong>'+esc(S.alts[lead].name)+'</strong></span>';
+  h.chart=sensChart(m,k,x);
+  h.rank=bars(S.alts,aCode,sc);
+  if(!cr.length)h.cross='<p>Peringkat 1 tidak berubah: <b>'+esc(S.alts[leaderAt(d,0)].name)+'</b> tetap teratas di seluruh rentang bobot 0–100%.</p>';
+  else h.cross='<ul class="cross">'+cr.map(function(c){return '<li>Pada bobot <b>'+pct(c.x)+'</b>, peringkat 1 berpindah dari <b>'+esc(S.alts[c.from].name)+'</b> ke <b>'+esc(S.alts[c.to].name)+'</b> (skor keduanya '+pct(c.score)+').</li>';}).join('')+'</ul>';
+  return h;
+}
+function tabSens(m){
+  if(m.cIds.length<2)return '<section class="sheet"><h2>Sensitivitas</h2><p class="lead">Analisis sensitivitas butuh minimal dua kriteria.</p></section>';
+  var k=critIdx(S.sensCrit), base=m.crit.w[k];
+  var x=S.sensX==null?base:S.sensX;
+  var live=sensLiveHTML(m,k,x);
+  var h='<section class="sheet"><div><h2>Analisis sensitivitas</h2><p class="lead">Ubah bobot satu kriteria utama. Kriteria lain menyesuaikan secara proporsional sehingga total tetap 100%; bobot sub-kriteria dan prioritas alternatif tidak berubah.</p></div>';
+  h+='<div class="sens-ctrl"><label class="field" for="sens-crit">Kriteria yang diuji<select id="sens-crit" data-action="sensCrit">'+S.criteria.map(function(c,i){return '<option value="'+c.id+'"'+(c.id===S.sensCrit?' selected':'')+'>'+cCode(i)+' · '+esc(c.name)+' ('+pct(m.crit.w[i])+')</option>';}).join('')+'</select></label>';
+  h+='<div class="field"><div class="readout" id="sens-readout">'+live.readout+'</div><input type="range" id="sens-x" data-action="sens" min="0" max="100" step="0.01" value="'+(x*100).toFixed(2)+'" aria-label="Bobot kriteria terpilih (%)"></div></div>';
+  h+='<div class="row-split"><span class="note">Garis putus-putus = bobot awal; garis tegas = bobot yang sedang diuji.</span><button class="btn small" type="button" data-action="sensReset">Kembalikan ke bobot awal</button></div>';
+  h+='<div id="sens-chart">'+live.chart+'</div></section>';
+  h+='<div class="grid2"><section class="sheet"><h2>Peringkat pada bobot ini</h2><div id="sens-rank">'+live.rank+'</div></section><section class="sheet"><h2>Titik perubahan peringkat 1</h2><div id="sens-cross">'+live.cross+'</div></section></div>';
+  return h;
+}
+
+/* ---------- render ---------- */
+var panel=document.getElementById('panel');
+function renderSummary(m){
+  var top=m.order[0];
+  var consCls=m.consTotal===0||m.consOk===m.consTotal?'ok':'bad';
+  var h='<div class="stat"><span class="lbl">Peringkat teratas</span><span class="val">'+esc(S.alts[top].name)+' <small>'+pct(m.scores[top])+'</small></span></div>';
+  h+='<div class="stat"><span class="lbl">Struktur</span><span class="val">'+m.cIds.length+' kriteria · '+m.nSubs+' sub · '+m.aIds.length+' alternatif</span></div>';
+  h+='<div class="stat"><span class="lbl">Konsistensi</span><span class="val">'+(m.consTotal?m.consOk+'/'+m.consTotal+' matriks':'—')+'</span><span class="chip '+consCls+'" style="align-self:flex-start">'+(m.consTotal===0?'Tidak perlu diuji':consCls==='ok'?'Semua CR &lt; 10%':'Ada CR ≥ 10%')+'</span></div>';
+  h+='<div class="stat"><label class="lbl" for="method">Metode bobot</label><select id="method" data-action="method"><option value="avg"'+(S.method==='avg'?' selected':'')+'>Rata-rata baris (normalisasi kolom)</option><option value="eig"'+(S.method==='eig'?' selected':'')+'>Eigenvector (iterasi pangkat)</option></select></div>';
+  document.getElementById('summary').innerHTML=h;
+  var b='';
+  if(S.isSample)b='<div class="banner"><span>ℹ︎</span><p><b>Data contoh:</b> kasus Pertamina Kilang Nusantara (6 kriteria, 28 sub-kriteria, 3 teknologi). Bobot lokal sub-kriteria diisi langsung dari hasil di materi, dan alternatif dinilai pada kriteria utama seperti di kasus. Ubah sesuka Anda, atau klik “Mulai dari nol”.</p></div>';
+  else if(m.incomplete)b='<div class="banner"><span>!</span><p><b>'+m.incomplete+' isian nilai langsung</b> belum lengkap dan sementara dihitung sama rata.</p></div>';
+  document.getElementById('banner').innerHTML=b;
+}
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=TABS.map(function(t,i){return '<button class="tab" type="button" role="tab" id="tab-'+t[0]+'" data-action="tab" data-val="'+t[0]+'" aria-selected="'+(S.tab===t[0])+'"><span class="n">'+(i+1)+'</span>'+t[1]+'</button>';}).join('');
+}
+function render(){
+  var a=document.activeElement, fid=a&&a.id, sel=null;
+  try{if(a&&a.tagName==='INPUT'&&a.type==='text')sel=[a.selectionStart,a.selectionEnd];}catch(e){}
+  var m=model();ensureSel(m);
+  renderSummary(m);renderTabs();
+  var fn={struktur:tabStruktur,kriteria:tabKriteria,subkriteria:tabSub,alternatif:tabAlternatif,hasil:tabHasil,sensitivitas:tabSens}[S.tab];
+  panel.innerHTML=fn(m);
+  applyHierFit();
+  if(fid){var el=document.getElementById(fid);if(el){try{el.focus({preventScroll:true});if(sel&&el.setSelectionRange)el.setSelectionRange(sel[0],sel[1]);}catch(e){}}}
+}
+function commit(){edited();save();render();}
+
+/* ---------- actions ---------- */
+function listOf(kind,critId){if(kind==='crit')return S.criteria;if(kind==='alt')return S.alts;var c=critById(critId);return c?c.subs:[];}
+function addItems(kind,names,critId){
+  names=names.map(function(s){return String(s).trim();}).filter(Boolean);
+  if(!names.length)return false;
+  var L=listOf(kind,critId);
+  names.forEach(function(nm){
+    if(kind==='crit')L.push({id:nid('c'),name:nm,subs:[],altLevel:'sub'});
+    else if(kind==='alt')L.push({id:nid('a'),name:nm});
+    else L.push({id:nid('s'),name:nm});
+  });
+  return true;
+}
+function cleanPW(pw,id){if(!pw)return;Object.keys(pw).forEach(function(key){var p=key.split('|');if(p[0]===id||p[1]===id)delete pw[key];});}
+function dropLeafData(id){delete S.altPW[id];delete S.altMode[id];delete S.altDirect[id];delete S.altType[id];}
+function removeItem(kind,id,critId){
+  var L=listOf(kind,critId);var i=L.findIndex(function(x){return x.id===id;});if(i<0)return;
+  var it=L[i];L.splice(i,1);
+  if(kind==='crit'){dropLeafData(id);(it.subs||[]).forEach(function(s){dropLeafData(s.id);});delete S.subPW[id];delete S.subMode[id];delete S.subDirect[id];cleanPW(S.critPW,id);}
+  else if(kind==='sub'){dropLeafData(id);cleanPW(S.subPW[critId],id);if(S.subDirect[critId])delete S.subDirect[critId][id];}
+  else{Object.keys(S.altPW).forEach(function(c){cleanPW(S.altPW[c],id);});Object.keys(S.altDirect).forEach(function(c){delete S.altDirect[c][id];});}
+}
+function arm(btn,label,fn){
+  if(btn.dataset.armed==='1'){btn.dataset.armed='';btn.classList.remove('armed');btn.textContent=btn.dataset.label;fn();return;}
+  btn.dataset.label=btn.textContent;btn.dataset.armed='1';btn.classList.add('armed');btn.textContent=label;
+  setTimeout(function(){if(btn.dataset.armed==='1'){btn.dataset.armed='';btn.classList.remove('armed');btn.textContent=btn.dataset.label;}},4000);
+}
+function resultText(){
+  var m=model(),L=[];
+  L.push('Kalkulator AHP'+(S.goal?' — '+S.goal:''));
+  L.push('Metode: '+(S.method==='eig'?'Eigenvector':'Rata-rata baris (normalisasi kolom)'));
+  L.push('');L.push('BOBOT KRITERIA');L.push('Kode\tKriteria\tBobot');
+  S.criteria.forEach(function(c,i){L.push(cCode(i)+'\t'+c.name+'\t'+pct(m.crit.w[i]));});
+  if(m.cIds.length>2)L.push('CR kriteria\t\t'+pct(m.crit.CR));
+  if(m.nSubs){
+    L.push('');L.push('BOBOT SUB-KRITERIA');L.push('Kode\tKriteria induk\tSub-kriteria\tLokal\tGlobal');
+    S.criteria.forEach(function(c,k){c.subs.forEach(function(s,j){L.push(cCode(k)+'.'+(j+1)+'\t'+c.name+'\t'+s.name+'\t'+pct(m.subs[k].local[j])+'\t'+pct(m.subs[k].global[j]));});});
+  }
+  L.push('');L.push('PRIORITAS ALTERNATIF PER ELEMEN');
+  L.push(['Alternatif'].concat(m.leaves.map(function(x){return x.code+' ('+pct(x.global)+')';})).concat(['Skor']).join('\t'));
+  S.alts.forEach(function(a,i){L.push([a.name].concat(m.leaves.map(function(x){return pct(x.ev.w[i]);})).concat([pct(m.scores[i])]).join('\t'));});
+  L.push('');L.push('PERINGKAT AKHIR');L.push('Peringkat\tAlternatif\tSkor');
+  m.order.forEach(function(i,r){L.push((r+1)+'\t'+S.alts[i].name+'\t'+pct(m.scores[i]));});
+  return L.join('\n');
+}
+function flash(btn,txt){var o=btn.textContent;btn.textContent=txt;setTimeout(function(){btn.textContent=o;},1800);}
+function focusId(id){var el=document.getElementById(id);if(el)el.focus();}
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('button[data-action]');if(!b||b.disabled)return;
+  var act=b.dataset.action, kind=b.dataset.kind, id=b.dataset.id, crit=b.dataset.crit;
+  switch(act){
+    case 'tab':S.tab=b.dataset.val;save();render();window.scrollTo({top:document.getElementById('tabs').offsetTop-8,behavior:'auto'});break;
+    case 'add':{var iid=kind==='sub'?'new-sub-'+crit:'new-'+kind;var inp=document.getElementById(iid);if(inp&&addItems(kind,[inp.value],crit)){commit();focusId(iid);}break;}
+    case 'bulk':{var ta=document.getElementById('bulk-'+kind);if(addItems(kind,ta.value.split(/\r?\n/)))commit();break;}
+    case 'del':removeItem(kind,id,crit);commit();break;
+    case 'move':{var L=listOf(kind,crit),i=L.findIndex(function(x){return x.id===id;}),j=i+Number(b.dataset.dir);if(j>=0&&j<L.length){var t=L[i];L[i]=L[j];L[j]=t;commit();}break;}
+    case 'subCrit':S.subCrit=id;save();render();break;
+    case 'subMode':S.subMode[S.subCrit]=b.dataset.val;if(!S.subDirect[S.subCrit])S.subDirect[S.subCrit]={};commit();break;
+    case 'altLevel':{var c=critById(S.subCrit);if(c){c.altLevel=b.dataset.val;commit();}break;}
+    case 'altLeaf':S.altLeaf=id;save();render();break;
+    case 'altNav':{var m=model(),li=m.leaves.findIndex(function(x){return x.id===S.altLeaf;})+Number(b.dataset.dir);if(li>=0&&li<m.leaves.length){S.altLeaf=m.leaves[li].id;save();render();}break;}
+    case 'mode':S.altMode[S.altLeaf]=b.dataset.val;if(!S.altDirect[S.altLeaf])S.altDirect[S.altLeaf]={};commit();break;
+    case 'resView':S.resView=b.dataset.val;save();render();break;
+    case 'hierFit':S.hierFit=b.dataset.val==='1';save();render();break;
+    case 'sensReset':S.sensX=null;save();render();break;
+    case 'sample':arm(b,'Klik lagi: ganti dengan contoh',function(){var t=S.tab;S=sample();S.tab=t;save();render();});break;
+    case 'reset':arm(b,'Klik lagi: hapus semua data',function(){S=blank();save();render();});break;
+    case 'copy':{
+      var txt=resultText();
+      var fb=function(){var box=document.getElementById('copy-fallback');box.innerHTML='<section class="sheet copybox"><h3>Salin manual</h3><p class="note">Penyalinan otomatis tidak diizinkan di tampilan ini. Teks sudah dipilih; tekan Ctrl/⌘ + C.</p><textarea id="copy-text" rows="10">'+esc(txt)+'</textarea></section>';var t=document.getElementById('copy-text');t.focus();t.select();};
+      try{navigator.clipboard.writeText(txt).then(function(){flash(b,'Tersalin ✓');},fb);}catch(err){fb();}
+      break;}
+  }
+});
+document.addEventListener('change',function(e){
+  var t=e.target, act=t.dataset&&t.dataset.action;if(!act)return;
+  switch(act){
+    case 'pw':{
+      var v=parseFrac(t.value),k=t.dataset.kind,c=t.dataset.crit;
+      if(k==='crit')setPW(S.critPW,t.dataset.a,t.dataset.b,v);
+      else if(k==='sub'){if(!S.subPW[c])S.subPW[c]={};setPW(S.subPW[c],t.dataset.a,t.dataset.b,v);}
+      else{if(!S.altPW[c])S.altPW[c]={};setPW(S.altPW[c],t.dataset.a,t.dataset.b,v);}
+      commit();break;}
+    case 'direct':{var c2=t.dataset.crit;if(!S.altDirect[c2])S.altDirect[c2]={};S.altDirect[c2][t.dataset.id]=t.value;commit();break;}
+    case 'subDirect':{var c3=t.dataset.crit;if(!S.subDirect[c3])S.subDirect[c3]={};S.subDirect[c3][t.dataset.id]=t.value;commit();break;}
+    case 'dtype':S.altType[t.dataset.crit]=t.value;commit();break;
+    case 'method':S.method=t.value;save();render();break;
+    case 'sensCrit':S.sensCrit=t.value;S.sensX=null;save();render();break;
+    case 'name':case 'goal':render();break;
+  }
+});
+document.addEventListener('input',function(e){
+  var t=e.target, act=t.dataset&&t.dataset.action;if(!act)return;
+  if(act==='name'){var L=listOf(t.dataset.kind,t.dataset.crit);var it=L.find(function(x){return x.id===t.dataset.id;});if(it){it.name=t.value;edited();save();renderSummary(model());}}
+  else if(act==='goal'){S.goal=t.value;edited();save();}
+  else if(act==='sens'){
+    S.sensX=Number(t.value)/100;save();
+    var m=model(),k=critIdx(S.sensCrit),h=sensLiveHTML(m,k,S.sensX);
+    document.getElementById('sens-readout').innerHTML=h.readout;
+    document.getElementById('sens-chart').innerHTML=h.chart;
+    document.getElementById('sens-rank').innerHTML=h.rank;
+  }
+});
+document.addEventListener('keydown',function(e){
+  var t=e.target;
+  if(e.key!=='Enter'||!t.id)return;
+  if(t.id.indexOf('new-sub-')===0){e.preventDefault();var cid=t.id.slice(8);if(addItems('sub',[t.value],cid)){commit();focusId(t.id);}}
+  else if(t.id==='new-crit'||t.id==='new-alt'){e.preventDefault();var kind=t.id.slice(4);if(addItems(kind,[t.value])){commit();focusId(t.id);}}
+});
+render();
+})();
+</script>
+
+</body></html>
